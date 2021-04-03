@@ -1,147 +1,303 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
-#include <string.h>
-#define COUNT 10
+#include <stdbool.h>
+#include <time.h>
 
-typedef struct Stack
+typedef struct NODE
 {
-	int x, y;
-	int index;
-}Stack;
+	int data;
+	struct NODE* next;
 
-void ShowStack(Stack* stack, Stack* stack2,int index);
-void Push(Stack* stack, int* index, Stack input);
-Stack Pop(Stack* stack, int* index);
-void PopAndPush(Stack* stack, int* index, Stack value);
+}Node;
+
+Node* head = NULL;
+Node* tail = NULL;
+
+void InitList();
+void SearchNode(int data);
+void InsertNode(Node* insert, int isSorted);
+void DeleteNode(int data);
+void DeleteAllNode(int data);
+void PrintNode(Node* node);
+void PrintList();
+void FindMaxNode();
+void Swap(Node* a, Node* b);
+bool SortList();
+void FreeList();
 
 int main()
-{
-	Stack stack[COUNT];
-	memset(stack, -1, sizeof(stack));
-	Stack stack2[COUNT];
-	memset(stack2, -1, sizeof(stack2));
+{	
+	bool isSorted = false;
+	InitList();
+	printf("Init - ");
+	PrintList();
 
-	int stackIndex = 0;
-	int stack2Index = 0;
+	printf("Find - ");
+	FindMaxNode();
 
-	for (int i = 0; i < COUNT - 5; ++i)
-	{
-		Stack temp;
-		temp.x = rand() % 100;
-		temp.y = rand() % 100;
-		temp.index = stackIndex;
+	Node* insert = (Node*)malloc(sizeof(Node));
+	insert->data = 999;
+	insert->next = NULL;
 
-		Push(stack, &stackIndex, temp);
-	}
+	InsertNode(insert, isSorted);
+	printf("\nInsert'999' ");
+	PrintList();
 
-	ShowStack(stack, stack2,stackIndex);
+	isSorted = SortList();
+	printf("Sort - ");
+	PrintList();
 
-	Stack temp;
-	temp.x = rand() % 20;
-	temp.y = rand() % 20;
-	temp.index = stackIndex;
-	Push(stack, &stackIndex, temp);
+	insert = (Node*)malloc(sizeof(Node));
+	insert->data = -999;
+	insert->next = NULL;
+	InsertNode(insert, isSorted);
+	printf("Insert'-999' ");
+	PrintList();
 
-	ShowStack(stack, stack2, stackIndex);
+	insert = (Node*)malloc(sizeof(Node));
+	insert->data = 50;
+	insert->next = NULL;
+	InsertNode(insert, isSorted);
+	printf("Insert'50' ");
+	PrintList();
 
-	for (int i = 0; i < COUNT - 5; ++i)
-	{
-		PopAndPush(stack2, &stack2Index, Pop(stack, &stackIndex));
-		ShowStack(stack, stack2, stackIndex);
-	}
-
-	PopAndPush(stack2, &stack2Index, Pop(stack, &stackIndex));
-	ShowStack(stack, stack2, stackIndex);
-
-
-	PopAndPush(stack2, &stack2Index, Pop(stack, &stackIndex));
-	ShowStack(stack, stack2, stackIndex);
-
-
-	PopAndPush(stack, &stackIndex, Pop(stack2, &stack2Index));
-	ShowStack(stack, stack2, stackIndex);
-
-
-	temp.x = rand() % 100;
-	temp.y = rand() % 100;
-	temp.index = stackIndex;
-	Push(stack, &stackIndex, temp);
-	ShowStack(stack, stack2, stackIndex);
-
-
-	temp.x = rand() % 100;
-	temp.y = rand() % 100;
-	temp.index = stackIndex;
-	Push(stack, &stackIndex, temp);
-	ShowStack(stack, stack2, stackIndex);
-
-
-
-	PopAndPush(stack2, &stack2Index, Pop(stack, &stackIndex));
-	ShowStack(stack, stack2, stackIndex);
 }
 
-void ShowStack(Stack* stack, Stack* stack2,int index)
+void InitList()
 {
-	printf("\nStack\n");
-	for (int i = 0; i < COUNT; ++i)
+	for (int i = 0; i < 10; ++i)
 	{
-		if (stack[i].index != -1)
+		Node* temp = (Node*)malloc(sizeof(Node));
+		temp->data = rand() % 100;
+		temp->next = NULL;
+
+		if (head == NULL)
 		{
-		printf("stack[%d] x = %d, y = %d\t", stack[i].index, stack[i].x, stack[i].y);
+			head = temp;
 		}
-		if (stack2[i].index != -1)
+		else
 		{
-		printf("stack2[%d] x = %d, y = %d\t", stack2[i].index, stack2[i].x, stack2[i].y);
+			tail->next = temp;
 		}
-		printf("\n");
+		tail = temp;
 	}
 }
 
-void Push(Stack* stack, int* index, Stack input)
+void SearchNode(int data)
 {
-	if (((*index) + 1) > 10)
+	Node* curr = head;
+	while (curr != NULL)
 	{
-		printf("Stack OverFlowed\n");
-		(*index) = COUNT;
+		if (curr->data == data)
+		{
+			PrintNode(curr);
+			return;
+		}
+		curr = curr->next;
+	}
+
+	printf("There are no values found in the list.\n");
+}
+
+void InsertNode(Node* insert, int isSorted)
+{
+	// TODO : 정렬 순서(내림차순)를 유지 하면서 insert하는 경우
+	if (isSorted && (head != NULL))
+	{
+		if (head->data < insert->data) // insert -> head
+		{
+			insert->next = head;
+			head = insert;
+			return;
+		}
+		else if (tail->data > insert->data) // tail -> insert
+		{
+			tail->next = insert;
+			tail = insert;
+			return;
+		}
+
+		Node* curr = head;
+		while (curr != NULL)
+		{
+			// curr.next - > insert -> curr.next.next
+			if ((curr->next->data > insert->data) && (curr->next->next->data < insert->data))// curr -> insert
+			{
+				Node* temp = curr->next;
+				insert->next = temp;
+				curr->next = insert;
+				return;
+			}
+			curr = curr->next;
+		}
+	}
+	else
+	{
+		// 리스트가 비었을 때 insert 하는 경우
+		if (head == NULL)
+		{
+			head = insert;
+			tail = insert;
+			return;
+		}
+
+		// 리스트의 노드가 하나일 경우
+		if (head == tail)
+		{
+			head = insert;
+			head->next = tail;
+			return;
+		}
+
+		// 리스트의 맨 마지막에 insert 하는 경우
+		tail->next = insert;
+		tail = insert;
 		return;
 	}
-	printf("Push\n");
-	stack[(*index)] = input;
-	(*index) += 1;
 }
 
-Stack Pop(Stack* stack, int* index)
+void DeleteNode(int data)
 {
-	if (((*index) - 1) < 0)
-	{
-		Stack temp;
-		temp.x = -1;
-		temp.y = -1;
-		temp.index - 1;
-
-		printf("Stack UnderFlowed\n");
-		(*index) = 0;
-		return temp;
-	}
-	printf("\nPopValue\n");
-	(*index) -= 1;
-	printf("stack[%d] x = %d, y = %d\n", stack[(*index)].index, stack[(*index)].x, stack[(*index)].y);
-
-	Stack out = stack[(*index)];
-	memset(&stack[(*index)], -1, sizeof(Stack));
-
-	return out;
-}
-
-void PopAndPush(Stack* stack, int* index, Stack value)
-{
-	if (value.x == -1)
+	// 리스트가 비었을 때 delete를 하는 경우
+	if (head == NULL)
 	{
 		return;
 	}
-	value.index = (*index);
-	stack[(*index)] = value;
-	(*index) += 1;
+
+	// 리스트의 노드가 하나이고 그 노드를 삭제하는 경우
+	if ((head == tail) && (head->data == data))
+	{
+		free(head);
+		head = NULL;
+		tail = NULL;
+		return;
+	}
+
+	// 삭제하려는 값의 위치가 head일 경우
+	if (head->data == data)
+	{
+		Node* temp = head->next;
+		head->next = temp->next;
+		free(head);
+		head = temp;
+		return;
+	}
+
+	Node* curr = head;
+
+	while (curr != NULL)
+	{
+		// 일반적인 삭제 알고리즘
+		if (curr->next->data == data)
+		{
+			Node* temp = curr->next;
+			curr->next = temp->next;
+			free(temp);
+			return;
+		}
+
+		// 삭제하려는 노드의 위치가 tail 일 경우
+		if ((curr->next == tail) && (tail->data == data))
+		{
+			free(tail);
+			tail = curr;
+			tail->next = NULL;
+			return;
+		}
+		curr = curr->next;
+	}
+}
+
+void DeleteAllNode(int data)
+{
+}
+
+void PrintNode(Node* node)
+{
+	printf("%d ", node->data);
+}
+
+void PrintList()
+{
+	Node* curr = head;
+
+	while (curr != NULL)
+	{
+		PrintNode(curr);
+		curr = curr->next;
+	}
+	printf("\n");
+
+	curr = NULL;
+}
+
+void FindMaxNode()
+{
+	Node* curr = head;
+
+	int maxData = 0;
+
+	// 리스트 내에서 가장 큰 값 찾기
+	while (curr != NULL)
+	{
+		if (curr->data > maxData)
+		{
+			maxData = curr->data;
+		}
+		curr = curr->next;
+	}
+
+	printf("max = %d / ", maxData);
+
+	// 가장 큰 값과 같은 노드 출력
+	curr = head;
+
+	while (curr != NULL)
+	{
+		if (curr->data == maxData)
+		{
+			PrintNode(curr);
+		}
+		curr = curr->next;
+	}
+
+	curr = NULL;
+}
+
+void Swap(Node* a, Node* b)
+{
+	int temp = a->data;
+	a->data = b->data;
+	b->data = temp;
+}
+
+bool SortList()
+{
+	for (Node* curr = head; curr != NULL; curr = curr->next)
+	{
+		for (Node* prev = curr->next; prev != NULL; prev = prev->next)
+		{
+			if (curr->data < prev->data)
+			{
+				Swap(curr, prev);
+			}
+		}
+	}
+	
+	return true;
+}
+
+void FreeList()
+{
+	Node* temp;
+	while (head != NULL)
+	{
+		temp = head;
+		head = head->next;
+		free(temp);
+	}
+	head = NULL;
+	tail = NULL;
+	temp = NULL;
 }
