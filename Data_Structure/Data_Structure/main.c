@@ -780,6 +780,7 @@ void Save(int board[][BOARD], stone* black, stone* white, int flag)
 
 void Load(int board[][BOARD], stone* black, stone* white, int* flag)
 {
+    InitBoard(board);
     FILE* fp;
 
     fp = fopen("saveData.bin", "rb");
@@ -814,7 +815,7 @@ void Undo(int board[][BOARD], stone* black, stone* white, int* flag)
 {
     if (*flag == WHITE)
     {
-        if (black->stackIndex-- < 1)
+        if (black->stackIndex-- <= 0)
         {
             printf("BLACK Stack UnderFlow\n");
             return;
@@ -830,7 +831,7 @@ void Undo(int board[][BOARD], stone* black, stone* white, int* flag)
     }
     else if (*flag == BLACK)
     {
-        if (white->stackIndex-- < 1)
+        if (white->stackIndex-- <= 0)
         {
             printf("WHITE Stack UnderFlow\n");
             return;
@@ -854,7 +855,7 @@ void UndoUndo(int board[][BOARD], stone* black, stone* white, int* flag)
 {
     if (*flag == BLACK)
     {
-        if (black->backUpIndex-- < 1)
+        if (black->backUpIndex-- <= 0)
         {
             printf("BLACK Stack UnderFlow\n");
             return;
@@ -868,7 +869,7 @@ void UndoUndo(int board[][BOARD], stone* black, stone* white, int* flag)
     }
     else if (*flag == WHITE)
     {
-        if (white->backUpIndex-- < 1)
+        if (white->backUpIndex-- <= 0)
         {
             printf("WHITE Stack UnderFlow\n");
             return;
