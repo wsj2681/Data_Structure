@@ -1,303 +1,887 @@
 #define _CRT_SECURE_NO_WARNINGS
+#define BOARD 19
+#define BLACK 1
+#define WHITE -1 
+
 #include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#include <time.h>
+#include <stdlib.h> 
+#include <string.h>
 
-typedef struct NODE
+typedef struct PutStack
 {
-	int data;
-	struct NODE* next;
+    int x;
+    int y;
 
-}Node;
+}stack;
 
-Node* head = NULL;
-Node* tail = NULL;
+typedef struct StoneInfo
+{
 
-void InitList();
-void SearchNode(int data);
-void InsertNode(Node* insert, int isSorted);
-void DeleteNode(int data);
-void DeleteAllNode(int data);
-void PrintNode(Node* node);
-void PrintList();
-void FindMaxNode();
-void Swap(Node* a, Node* b);
-bool SortList();
-void FreeList();
+    const int type;   // 0: BLACK, 1: WHITE
+    int totalCount;
+
+    int rowStoneCount[BOARD];
+    int colStoneCount[BOARD];
+    int rdStoneCount[BOARD * 2];
+    int ruStoneCount[BOARD * 2];
+
+    int rowComboCount[BOARD];
+    int colComboCount[BOARD];
+    int rdComboCount[BOARD * 2];    // right Down
+    int ruComboCount[BOARD * 2];    // right Up
+
+    stack stack[BOARD];
+    int stackIndex;
+
+    stack backUpStack[BOARD];
+    int backUpIndex;
+
+}stone;
+
+void ClearStone(stone* black, stone* white);
+void InitBoard(int board[][BOARD]);
+void PrintBoard(int board[][BOARD], stone* black, stone* white, int flag);
+void PrintSituationBoard(int board[][BOARD], stone* black, stone* white);
+
+void CheckBoard(int board[][BOARD], stone* black, stone* white);
+void RowCheck(int board[][BOARD], stone* black, stone* white);
+void ColumnCheck(int board[][BOARD], stone* black, stone* white);
+void RightUpCheck(int board[][BOARD], stone* black, stone* white);
+void RightDownCheck(int board[][BOARD], stone* black, stone* white);
+void Save(int board[][BOARD], stone* black, stone* white, int flag);
+void Load(int board[][BOARD], stone* black, stone* white, int* flag);
+void Undo(int board[][BOARD], stone* black, stone* white, int* flag);
+void UndoUndo(int board[][BOARD], stone* black, stone* white, int* flag);
 
 int main()
-{	
-	bool isSorted = false;
-	InitList();
-	printf("Init - ");
-	PrintList();
+{
+    int x, y;
 
-	printf("Find - ");
-	FindMaxNode();
+    int board[BOARD][BOARD];
 
-	Node* insert = (Node*)malloc(sizeof(Node));
-	insert->data = 999;
-	insert->next = NULL;
+    int flag = 1;
 
-	InsertNode(insert, isSorted);
-	printf("\nInsert'999' ");
-	PrintList();
+    stone black = { 0, 0, 0, 0, 0 };
+    stone white = { 1, 0, 0, 0, 0 };
 
-	isSorted = SortList();
-	printf("Sort - ");
-	PrintList();
+    InitBoard(board);
 
-	insert = (Node*)malloc(sizeof(Node));
-	insert->data = -999;
-	insert->next = NULL;
-	InsertNode(insert, isSorted);
-	printf("Insert'-999' ");
-	PrintList();
+    while (1)
+    {
+        CheckBoard(board, &black, &white);
+        PrintBoard(board, &black, &white, flag);
 
-	insert = (Node*)malloc(sizeof(Node));
-	insert->data = 50;
-	insert->next = NULL;
-	InsertNode(insert, isSorted);
-	printf("Insert'50' ");
-	PrintList();
+        scanf_s("%d %d", &y, &x);
+
+        if (y == -1)
+        {
+            break;
+        }
+
+        if (y == 100)
+        {
+            Save(board, &black, &white, flag);
+            continue;
+        }
+
+        if (y == 101)
+        {
+            Load(board, &black, &white, &flag);
+            continue;
+        }
+
+        if (y == 102)
+        {
+            Undo(board, &black, &white, &flag);
+            continue;
+        }
+
+        if (y == 103)
+        {
+            UndoUndo(board, &black, &white, &flag);
+            continue;
+        }
+
+        if ((x < 0 || x > BOARD) || (y < 0 || y > BOARD))
+        {
+            printf("범위를 벗어났습니다.\n");
+            continue;
+        }
+
+        if (board[y][x] != 0)
+        {
+            printf("이미 돌이 놓여있습니다.\n");
+            continue;
+        }
+
+        if (flag == BLACK)
+        {
+            board[y][x] = BLACK;
+            black.totalCount++;
+            black.stack[black.stackIndex].x = x;
+            black.stack[black.stackIndex].y = y;
+            black.stackIndex++;
+        }
+
+        else if (flag == WHITE)
+        {
+            board[y][x] = WHITE;
+            white.totalCount++;
+            white.stack[white.stackIndex].x = x;
+            white.stack[white.stackIndex].y = y;
+            white.stackIndex++;
+        }
+
+        flag *= -1;
+    }
+    return 0;
+}
+
+
+
+void ClearStone(stone* black, stone* white)
+{
+    for (int i = 0; i < BOARD; ++i)
+    {
+        black->rowStoneCount[i] = 0;
+        black->colStoneCount[i] = 0;
+        white->rowStoneCount[i] = 0;
+        white->colStoneCount[i] = 0;
+    }
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        black->rdStoneCount[i] = 0;
+        black->ruStoneCount[i] = 0;
+        white->rdStoneCount[i] = 0;
+        white->ruStoneCount[i] = 0;
+    }
+}
+
+void InitBoard(int board[][BOARD])
+{
+    for (int i = 0; i < BOARD; ++i)
+    {
+        for (int j = 0; j < BOARD; ++j)
+        {
+            memset(&board[i][j], 0, sizeof(int));
+        }
+    }
 
 }
 
-void InitList()
+void PrintBoard(int board[][BOARD], stone* black, stone* white, int flag)
 {
-	for (int i = 0; i < 10; ++i)
-	{
-		Node* temp = (Node*)malloc(sizeof(Node));
-		temp->data = rand() % 100;
-		temp->next = NULL;
+    for (int i = 0; i < BOARD; ++i)
+    {
+        for (int j = 0; j < BOARD; ++j)
+        {
+            if (board[j][i] == 0)
+            {
+                printf("╂ ");
+            }
+            else if (board[j][i] == 1)
+            {
+                printf("○");
+            }
+            else if (board[j][i] == -1)
+            {
+                printf("●");
+            }
+        }
+        printf("\n");
+    }
 
-		if (head == NULL)
-		{
-			head = temp;
-		}
-		else
-		{
-			tail->next = temp;
-		}
-		tail = temp;
-	}
+    if (flag == 1)
+        printf("검은돌 차례입니다.\n");
+    if (flag == -1)
+        printf("흰돌 차례입니다.\n");
 }
 
-void SearchNode(int data)
+void PrintSituationBoard(int board[][BOARD], stone* black, stone* white)
 {
-	Node* curr = head;
-	while (curr != NULL)
-	{
-		if (curr->data == data)
-		{
-			PrintNode(curr);
-			return;
-		}
-		curr = curr->next;
-	}
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        if ((black->rowStoneCount[i] != 0) || (white->rowStoneCount[i] != 0) ||
+            (black->colStoneCount[i] != 0) || (white->colStoneCount[i] != 0) ||
+            (black->ruStoneCount[i] != 0) || (white->ruStoneCount[i] != 0) ||
+            (black->rdStoneCount[i] != 0) || (white->rdStoneCount[i] != 0))
+        {
+            if ((black->rowStoneCount[i] != 0) || (white->rowStoneCount[i] != 0))
+            {
+                printf("%d열-검은돌:%d, 흰돌:%d, ", i, black->rowStoneCount[i], white->rowStoneCount[i]);
 
-	printf("There are no values found in the list.\n");
+                if (black->rowComboCount[i] > white->rowComboCount[i])
+                {
+                    printf("연속 돌 = 흑돌 %d/ ", black->rowComboCount[i]);
+                }
+                else if (black->rowComboCount[i] < white->rowComboCount[i])
+                {
+                    printf("연속 돌 = 백돌 %d/ ", white->rowComboCount[i]);
+                }
+                else if (black->rowComboCount[i] < white->rowComboCount[i])
+                {
+                    printf("두돌 연속갯수 %d/ ", white->rowComboCount[i]);
+                }
+            }
+
+            if ((black->colStoneCount[i] != 0) || (white->colStoneCount[i] != 0))
+            {
+                printf("%d행-검은돌:%d, 흰돌:%d, ", i, black->colStoneCount[i], white->colStoneCount[i]);
+
+                if (black->colComboCount[i] > white->colComboCount[i])
+                {
+                    printf("연속 돌 = 흑돌 %d/ ", black->colComboCount[i]);
+                }
+                else if (black->colComboCount[i] < white->colComboCount[i])
+                {
+                    printf("연속 돌 = 백돌 %d/ ", white->colComboCount[i]);
+                }
+                else if (black->colComboCount[i] < white->colComboCount[i])
+                {
+                    printf("두돌 연속갯수 %d/ ", white->colComboCount[i]);
+                }
+            }
+
+            if ((black->ruStoneCount[i] != 0) || (white->ruStoneCount[i] != 0))
+            {
+                printf("%d우상향-검은돌:%d, 흰돌:%d, ", i, black->ruStoneCount[i], white->ruStoneCount[i]);
+
+                if (black->ruComboCount[i] > white->ruComboCount[i])
+                {
+                    printf("연속 돌 = 흑돌 %d/ ", black->ruComboCount[i]);
+                }
+                else if (black->ruComboCount[i] < white->ruComboCount[i])
+                {
+                    printf("연속 돌 = 백돌 %d/ ", white->ruComboCount[i]);
+                }
+                else if (black->ruComboCount[i] < white->ruComboCount[i])
+                {
+                    printf("두돌 연속갯수 %d/ ", white->ruComboCount[i]);
+                }
+            }
+
+            if ((black->rdStoneCount[i] != 0) || (white->rdStoneCount[i] != 0))
+            {
+                printf("%d우하향-검은돌:%d, 흰돌:%d, ", i, black->rdStoneCount[i], white->rdStoneCount[i]);
+
+                if (black->rdComboCount[i] > white->rdComboCount[i])
+                {
+                    printf("연속 돌 = 흑돌 %d/", black->rdComboCount[i]);
+                }
+                else if (black->rdComboCount[i] < white->rdComboCount[i])
+                {
+                    printf("연속 돌 = 백돌 %d/", white->rdComboCount[i]);
+                }
+                else if (black->rdComboCount[i] < white->rdComboCount[i])
+                {
+                    printf("두돌 연속갯수 %d/", white->rdComboCount[i]);
+                }
+            }
+            printf("\n");
+        }
+    }
+    for (int i = 0; i < BOARD; ++i)
+    {
+        printf("%d ", black->colComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        printf("%d ", black->rowComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        printf("%d ", black->ruComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        printf("%d ", black->rdComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        printf("%d ", white->colComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        printf("%d ", white->rowComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        printf("%d ", white->ruComboCount[i]);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        printf("%d ", white->rdComboCount[i]);
+    }
+
+    printf("\n");
+
+    int index = 0;
+    int max = 0;
+    for (int i = 0; i < BOARD; ++i)
+    {
+        if (max < black->colComboCount[i])
+        {
+            index = i;
+            max = black->colComboCount[i];
+        }
+    }
+    printf("%d 행 검은돌 최대 콤보 : %d\n", index, max);
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        if (max < white->colComboCount[i])
+        {
+            index = i;
+            max = white->colComboCount[i];
+        }
+    }
+    printf("%d 행 흰돌 최대 콤보 : %d\n", index, max);
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        if (max < black->rowComboCount[i])
+        {
+            index = i;
+            max = black->rowComboCount[i];
+        }
+    }
+    printf("%d 열 검은돌 최대 콤보 : %d\n", index, max);
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        if (max < white->rowComboCount[i])
+        {
+            index = i;
+            max = white->rowComboCount[i];
+        }
+    }
+    printf("%d 열 흰돌 최대 콤보 : %d\n", index, max);
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        if (max < white->ruComboCount[i])
+        {
+            index = i;
+            max = white->ruComboCount[i];
+        }
+    }
+    printf("%d 우상향 흰돌 최대 콤보 : %d\n", index, max);
+
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        if (max < black->ruComboCount[i])
+        {
+            index = i;
+            max = black->ruComboCount[i];
+        }
+    }
+    printf("%d 우상향 검은돌 최대 콤보 : %d\n", index, max);
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        if (max < white->rdComboCount[i])
+        {
+            index = i;
+            max = white->rdComboCount[i];
+        }
+    }
+    printf("%d 우하향 흰돌 최대 콤보 : %d\n", index, max);
+
+
+    index = 0;
+    max = 0;
+
+    for (int i = 0; i < BOARD * 2; ++i)
+    {
+        if (max < black->rdComboCount[i])
+        {
+            index = i;
+            max = black->rdComboCount[i];
+        }
+    }
+    printf("%d 우하향 검은돌 최대 콤보 : %d\n", index, max);
 }
 
-void InsertNode(Node* insert, int isSorted)
+void CheckBoard(int board[][BOARD], stone* black, stone* white)
 {
-	// TODO : 정렬 순서(내림차순)를 유지 하면서 insert하는 경우
-	if (isSorted && (head != NULL))
-	{
-		if (head->data < insert->data) // insert -> head
-		{
-			insert->next = head;
-			head = insert;
-			return;
-		}
-		else if (tail->data > insert->data) // tail -> insert
-		{
-			tail->next = insert;
-			tail = insert;
-			return;
-		}
-
-		Node* curr = head;
-		while (curr != NULL)
-		{
-			// curr.next - > insert -> curr.next.next
-			if ((curr->next->data > insert->data) && (curr->next->next->data < insert->data))// curr -> insert
-			{
-				Node* temp = curr->next;
-				insert->next = temp;
-				curr->next = insert;
-				return;
-			}
-			curr = curr->next;
-		}
-	}
-	else
-	{
-		// 리스트가 비었을 때 insert 하는 경우
-		if (head == NULL)
-		{
-			head = insert;
-			tail = insert;
-			return;
-		}
-
-		// 리스트의 노드가 하나일 경우
-		if (head == tail)
-		{
-			head = insert;
-			head->next = tail;
-			return;
-		}
-
-		// 리스트의 맨 마지막에 insert 하는 경우
-		tail->next = insert;
-		tail = insert;
-		return;
-	}
+    ClearStone(black, white);
+    RowCheck(board, black, white);
+    ColumnCheck(board, black, white);
+    RightUpCheck(board, black, white);
+    RightDownCheck(board, black, white);
 }
 
-void DeleteNode(int data)
+void RowCheck(int board[][BOARD], stone* black, stone* white)
 {
-	// 리스트가 비었을 때 delete를 하는 경우
-	if (head == NULL)
-	{
-		return;
-	}
+    for (int i = 0; i < BOARD; ++i)
+    {
+        for (int j = 0; j < BOARD; ++j)
+        {
+            if (board[i][j] == BLACK)
+            {
+                black->rowStoneCount[i]++;
+            }
+            else if (board[i][j] == WHITE)
+            {
+                white->rowStoneCount[i]++;
+            }
+            else if (board[i][j] == 0)
+            {
+                continue;
+            }
 
-	// 리스트의 노드가 하나이고 그 노드를 삭제하는 경우
-	if ((head == tail) && (head->data == data))
-	{
-		free(head);
-		head = NULL;
-		tail = NULL;
-		return;
-	}
+            int comboCount = 0;
+            int nowType = board[i][j];
 
-	// 삭제하려는 값의 위치가 head일 경우
-	if (head->data == data)
-	{
-		Node* temp = head->next;
-		head->next = temp->next;
-		free(head);
-		head = temp;
-		return;
-	}
+            for (int k = j; j < BOARD; ++k)
+            {
+                if (board[i][k] == nowType)
+                {
+                    comboCount++;
+                }
+                else
+                {
+                    break;
+                }
+            }
 
-	Node* curr = head;
+            if (nowType == BLACK)
+            {
+                if (black->rowComboCount[i] < comboCount)
+                {
+                    black->rowComboCount[i] = comboCount;
+                }
+            }
+            else if (nowType == WHITE)
+            {
+                if (white->rowComboCount[i] < comboCount)
+                {
+                    white->rowComboCount[i] = comboCount;
+                }
+            }
+        }
+    }
 
-	while (curr != NULL)
-	{
-		// 일반적인 삭제 알고리즘
-		if (curr->next->data == data)
-		{
-			Node* temp = curr->next;
-			curr->next = temp->next;
-			free(temp);
-			return;
-		}
-
-		// 삭제하려는 노드의 위치가 tail 일 경우
-		if ((curr->next == tail) && (tail->data == data))
-		{
-			free(tail);
-			tail = curr;
-			tail->next = NULL;
-			return;
-		}
-		curr = curr->next;
-	}
 }
 
-void DeleteAllNode(int data)
+void ColumnCheck(int board[][BOARD], stone* black, stone* white)
 {
+    for (int i = 0; i < BOARD; ++i)
+    {
+        for (int j = 0; j < BOARD; ++j)
+        {
+            if (board[j][i] == BLACK)
+            {
+                black->colStoneCount[i]++;
+            }
+            else if (board[j][i] == WHITE)
+            {
+                white->colStoneCount[i]++;
+            }
+            else if (board[j][i] == 0)
+            {
+                continue;
+            }
+
+            int comboCount = 0;
+            int nowType = board[i][j];
+
+            for (int k = j; j < BOARD; ++k)
+            {
+                if (board[k][i] == nowType)
+                {
+                    comboCount++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (nowType == BLACK)
+            {
+                if (black->colComboCount[i] < comboCount)
+                {
+                    black->colComboCount[i] = comboCount;
+                }
+            }
+            else if (nowType == WHITE)
+            {
+                if (white->colComboCount[i] < comboCount)
+                {
+                    white->colComboCount[i] = comboCount;
+                }
+            }
+        }
+    }
 }
 
-void PrintNode(Node* node)
+void RightUpCheck(int board[][BOARD], stone* black, stone* white)
 {
-	printf("%d ", node->data);
+    int rightUpIndex = 0;
+    for (int i = 0; i < BOARD; ++i, ++rightUpIndex)
+    {
+        for (int j = 0; j < i + 1; ++j)
+        {
+            if (board[j][i] == BLACK)
+            {
+                black->ruStoneCount[rightUpIndex]++;
+            }
+            else if (board[j][i] == WHITE)
+            {
+                white->ruStoneCount[rightUpIndex]++;
+            }
+            else if (board[j][i] == 0)
+            {
+                continue;
+            }
+
+            int comboCount = 0;
+            int nowType = board[i - j][j];
+
+            for (int k = j; k < i + 1; ++k)
+            {
+                if (board[i - j][j] == nowType)
+                {
+                    comboCount++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (nowType == BLACK)
+            {
+                if (black->ruComboCount[rightUpIndex] < comboCount)
+                {
+                    black->ruComboCount[rightUpIndex] = comboCount;
+                }
+            }
+            else if (nowType == WHITE)
+            {
+                if (white->ruComboCount[rightUpIndex] < comboCount)
+                {
+                    white->ruComboCount[rightUpIndex] = comboCount;
+                }
+            }
+        }
+    }
+
+    for (int i = 1; i < BOARD; ++i, ++rightUpIndex)
+    {
+        for (int j = BOARD - 1; j >= i; --j)
+        {
+            if (board[j][(BOARD - 1) + (i - j)] == BLACK)
+            {
+                black->ruStoneCount[rightUpIndex]++;
+            }
+            else if (board[j][(BOARD - 1) + (i - j)] == WHITE)
+            {
+                white->ruStoneCount[rightUpIndex]++;
+            }
+            else if (board[j][(BOARD - 1) + (i - j)] == 0)
+            {
+                continue;
+            }
+
+            int comboCount = 0;
+            int nowType = board[i - j][(BOARD - 1) + (i - j)];
+
+            for (int k = j; k >= i + 1; --k)
+            {
+                if (board[k][(BOARD - 1) + (i - k)] == nowType)
+                {
+                    comboCount++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (nowType == BLACK)
+            {
+                if (black->ruComboCount[rightUpIndex] < comboCount)
+                {
+                    black->ruComboCount[rightUpIndex] = comboCount;
+                }
+            }
+            else if (nowType == WHITE)
+            {
+                if (white->ruComboCount[rightUpIndex] < comboCount)
+                {
+                    white->ruComboCount[rightUpIndex] = comboCount;
+                }
+            }
+        }
+    }
 }
 
-void PrintList()
+void RightDownCheck(int board[][BOARD], stone* black, stone* white)
 {
-	Node* curr = head;
+    int rightDownIndex = 0;
+    for (int i = BOARD - 1; i >= 0; --i, ++rightDownIndex)
+    {
+        for (int j = 0; j < BOARD - i; ++j)
+        {
+            if (board[i + j][i] == BLACK)
+            {
+                black->rdStoneCount[rightDownIndex]++;
+            }
+            else if (board[i + j][i] == WHITE)
+            {
+                white->rdStoneCount[rightDownIndex]++;
+            }
+            else if (board[i + j][i] == 0)
+            {
+                continue;
+            }
 
-	while (curr != NULL)
-	{
-		PrintNode(curr);
-		curr = curr->next;
-	}
-	printf("\n");
+            int comboCount = 0;
+            int nowType = board[i + j][j];
 
-	curr = NULL;
+            for (int k = j; k < i + 1; ++k)
+            {
+                if (board[i + k][j] == nowType)
+                {
+                    comboCount++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (nowType == BLACK)
+            {
+                if (black->rdComboCount[rightDownIndex] < comboCount)
+                {
+                    black->rdComboCount[rightDownIndex] = comboCount;
+                }
+            }
+            else if (nowType == WHITE)
+            {
+                if (white->rdComboCount[rightDownIndex] < comboCount)
+                {
+                    white->rdComboCount[rightDownIndex] = comboCount;
+                }
+            }
+        }
+    }
+
+    for (int i = 1; i < BOARD; ++i, ++rightDownIndex)
+    {
+        for (int j = 0; j < BOARD - 1; ++j)
+        {
+            if (board[j][i + j] == BLACK)
+            {
+                black->rdStoneCount[rightDownIndex]++;
+            }
+            else if (board[j][i + j] == WHITE)
+            {
+                white->rdStoneCount[rightDownIndex]++;
+            }
+            else if (board[j][i + j] == 0)
+            {
+                continue;
+            }
+
+            int comboCount = 0;
+            int nowType = board[j][i + j];
+
+            for (int k = j; k < BOARD - i; ++k)
+            {
+                if (board[k][i + k] == nowType)
+                {
+                    comboCount++;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            if (nowType == BLACK)
+            {
+                if (black->rdComboCount[rightDownIndex] < comboCount)
+                {
+                    black->rdComboCount[rightDownIndex] = comboCount;
+                }
+            }
+            else if (nowType == WHITE)
+            {
+                if (white->rdComboCount[rightDownIndex] < comboCount)
+                {
+                    white->rdComboCount[rightDownIndex] = comboCount;
+                }
+            }
+        }
+    }
 }
 
-void FindMaxNode()
+void Save(int board[][BOARD], stone* black, stone* white, int flag)
 {
-	Node* curr = head;
+    FILE* fp;
 
-	int maxData = 0;
+    fp = fopen("saveData.bin", "wb");
 
-	// 리스트 내에서 가장 큰 값 찾기
-	while (curr != NULL)
-	{
-		if (curr->data > maxData)
-		{
-			maxData = curr->data;
-		}
-		curr = curr->next;
-	}
-
-	printf("max = %d / ", maxData);
-
-	// 가장 큰 값과 같은 노드 출력
-	curr = head;
-
-	while (curr != NULL)
-	{
-		if (curr->data == maxData)
-		{
-			PrintNode(curr);
-		}
-		curr = curr->next;
-	}
-
-	curr = NULL;
+    for (int i = 0; i < BOARD; ++i)
+    {
+        for (int j = 0; j < BOARD; ++j)
+        {
+            fprintf(fp, "%d ", board[i][j]);
+        }
+    }
+    fprintf(fp, "%d ", flag);
+    fclose(fp);
 }
 
-void Swap(Node* a, Node* b)
+void Load(int board[][BOARD], stone* black, stone* white, int* flag)
 {
-	int temp = a->data;
-	a->data = b->data;
-	b->data = temp;
+    FILE* fp;
+
+    fp = fopen("saveData.bin", "rb");
+
+    for (int i = 0; i < BOARD; ++i)
+    {
+        for (int j = 0; j < BOARD; ++j)
+        {
+            fscanf(fp, "%d ", &board[i][j]);
+
+            if (board[i][j] == BLACK)
+            {
+                black->stack[black->stackIndex].x = j;
+                black->stack[black->stackIndex].y = i;
+                black->stackIndex++;
+            }
+            else if (board[i][j] == WHITE)
+            {
+                white->stack[white->stackIndex].x = j;
+                white->stack[white->stackIndex].y = i;
+                white->stackIndex++;
+            }
+        }
+    }
+
+    fscanf(fp, "%d ", flag);
+
+    fclose(fp);
 }
 
-bool SortList()
+void Undo(int board[][BOARD], stone* black, stone* white, int* flag)
 {
-	for (Node* curr = head; curr != NULL; curr = curr->next)
-	{
-		for (Node* prev = curr->next; prev != NULL; prev = prev->next)
-		{
-			if (curr->data < prev->data)
-			{
-				Swap(curr, prev);
-			}
-		}
-	}
-	
-	return true;
+    if (*flag == WHITE)
+    {
+        if (black->stackIndex-- < 1)
+        {
+            printf("BLACK Stack UnderFlow\n");
+            return;
+        }
+
+        black->backUpStack[black->backUpIndex].x = black->stack[black->stackIndex].x;
+        black->backUpStack[black->backUpIndex].y = black->stack[black->stackIndex].y;
+        black->backUpIndex++;
+
+        board[black->stack[black->stackIndex].y][black->stack[black->stackIndex].x] = 0;
+        memset(&black->stack[black->stackIndex], 0, sizeof(stack));
+        *flag *= -1;
+    }
+    else if (*flag == BLACK)
+    {
+        if (white->stackIndex-- < 1)
+        {
+            printf("WHITE Stack UnderFlow\n");
+            return;
+        }
+
+        white->backUpStack[white->backUpIndex].x = white->stack[white->stackIndex].x;
+        white->backUpStack[white->backUpIndex].y = white->stack[white->stackIndex].y;
+        white->backUpIndex++;
+
+        board[white->stack[white->stackIndex].y][white->stack[white->stackIndex].x] = 0;
+        memset(&white->stack[white->stackIndex], 0, sizeof(stack));
+        *flag *= -1;
+    }
+    else
+    {
+
+    }
 }
 
-void FreeList()
+void UndoUndo(int board[][BOARD], stone* black, stone* white, int* flag)
 {
-	Node* temp;
-	while (head != NULL)
-	{
-		temp = head;
-		head = head->next;
-		free(temp);
-	}
-	head = NULL;
-	tail = NULL;
-	temp = NULL;
+    if (*flag == BLACK)
+    {
+        if (black->backUpIndex-- < 1)
+        {
+            printf("BLACK Stack UnderFlow\n");
+            return;
+        }
+
+        board[black->backUpStack[black->backUpIndex].y][black->backUpStack[black->backUpIndex].x] = BLACK;
+        black->stackIndex++;
+        black->backUpStack[black->backUpIndex].x = 0;
+        black->backUpStack[black->backUpIndex].y = 0;
+        *flag *= -1;
+    }
+    else if (*flag == WHITE)
+    {
+        if (white->backUpIndex-- < 1)
+        {
+            printf("WHITE Stack UnderFlow\n");
+            return;
+        }
+
+        board[white->backUpStack[white->backUpIndex].y][white->backUpStack[white->backUpIndex].x] = WHITE;
+        white->stackIndex++;
+        white->backUpStack[white->backUpIndex].x = 0;
+        white->backUpStack[white->backUpIndex].y = 0;
+        *flag *= -1;
+    }
+    else
+    {
+
+    }
 }
